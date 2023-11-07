@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}
+Страница контакты
+{% endblock %}
+
+{% block body %}
+
+<div class="container mt-5">
+	<h1>Страница контакты</h1>
+	<form method="post">
+		<input type="text" class="form-control" placeholder="Введите имя"><br>
+		<input type="email" class="form-control" placeholder="Введите email"><br>
+		<input type="submit" class="btn btn-warning" value="Отправить">
+	</form>
+</div>
+{% endblock %}
