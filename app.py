@@ -56,14 +56,40 @@ def about():
 
 @app.route('/posts')
 def posts():
-    articles = Article.query.order_by(Article.date.desc()).all()
+    articles = Article.query.order_by(Article.id).all()
     return render_template('posts.html', articles=articles)
 
 
-@app.route('/posts<int:id>')
+@app.route('/posts/<int:id>')
 def post_details(id):
     article = Article.query.get(id)
     return render_template('post_details.html', article=article)
+
+
+@app.route('/posts/<int:id>/<string:action>', methods=['POST', 'GET'])
+def post_action(id, action):
+    article = Article.query.get_or_404(id)
+    if action == 'delete':
+        try:
+            db.session.delete(article)
+            db.session.commit()
+            return redirect('/posts')
+        except:
+            return "При удалении статьи произошла ошибка!"
+    elif action == 'update':
+        if request.method == 'POST':
+            article.title = request.form['title']
+            article.intro = request.form['intro']
+            article.text = request.form['text']
+
+            try:
+                db.session.commit()
+                return redirect('/posts')
+            except:
+                return "При редактировании статьи произошла ошибка!"
+        else:
+            return render_template('post_update.html', article=article)
+
 
 @app.route('/create-article', methods=['POST', 'GET'])
 def create_article():
