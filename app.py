@@ -1,11 +1,15 @@
-from flask import Flask, render_template, url_for, request, redirect
+import smtplib
+
+from flask import Flask, render_template, request, redirect, flash, get_flashed_messages
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blog.db'
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///blog.db"
+app.config["SECRET_KEY"] = "fdg"
 db = SQLAlchemy(app)
+
 
 class Article(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -15,7 +19,17 @@ class Article(db.Model):
     date = db.Column(db.DateTime, default=datetime.utcnow())
 
     def __repr__(self):
-        return '<Article %r>' % self.id
+        return "<Article %r>" % self.id
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(50), nullable=False)
+    text = db.Column(db.Text, nullable=False)
+
+    def __repr__(self):
+        return "<User %r>" % self.id
 
 
 class Tasks(db.Model):
@@ -27,7 +41,7 @@ class Tasks(db.Model):
     difficulty = db.Column(db.Float, default=1.0)
 
     def __repr__(self):
-        return '<Tasks %r>' % self.id % self.task_title
+        return "<Tasks %r>" % self.id % self.task_title
 
 
 class Someinfo(db.Model):
@@ -40,104 +54,138 @@ class Someinfo(db.Model):
     has_car = db.Column(db.Boolean, default=False)
 
     def __repr__(self):
-        return '<Someinfo %r>' % self.id
+        return "<Someinfo %r>" % self.id
 
 
-@app.route('/')
-@app.route('/home')
+@app.route("/")
+@app.route("/home")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
 
-@app.route('/about')
+@app.route("/about")
 def about():
-    return render_template('about.html')
+    return render_template("about.html")
 
 
-@app.route('/posts')
+@app.route("/posts")
 def posts():
     articles = Article.query.order_by(Article.id).all()
-    return render_template('posts.html', articles=articles)
+    return render_template("posts.html", articles=articles)
 
 
-@app.route('/posts/<int:id>')
+@app.route("/posts/<int:id>")
 def post_details(id):
     article = Article.query.get(id)
-    return render_template('post_details.html', article=article)
+    return render_template("post_details.html", article=article)
 
 
-@app.route('/posts/<int:id>/<string:action>', methods=['POST', 'GET'])
+@app.route("/posts/<int:id>/<string:action>", methods=["POST", "GET"])
 def post_action(id, action):
     article = Article.query.get_or_404(id)
-    if action == 'delete':
+    if action == "delete":
         try:
             db.session.delete(article)
             db.session.commit()
-            return redirect('/posts')
+            return redirect("/posts")
         except:
             return "При удалении статьи произошла ошибка!"
-    elif action == 'update':
-        if request.method == 'POST':
-            article.title = request.form['title']
-            article.intro = request.form['intro']
-            article.text = request.form['text']
-
+    elif action == "update":
+        if request.method == "POST":
+            article.title = request.form["title"]
+            article.intro = request.form["intro"]
+            article.text = request.form["text"]
             try:
                 db.session.commit()
-                return redirect('/posts')
+                return redirect("/posts")
             except:
                 return "При редактировании статьи произошла ошибка!"
         else:
-            return render_template('post_update.html', article=article)
+            return render_template("post_update.html", article=article)
 
 
-@app.route('/create-article', methods=['POST', 'GET'])
+@app.route("/create-article", methods=["POST", "GET"])
 def create_article():
     if request.method == "POST":
-        title = request.form['title']
-        intro = request.form['intro']
-        text = request.form['text']
+        title = request.form["title"]
+        intro = request.form["intro"]
+        text = request.form["text"]
 
         article = Article(title=title, intro=intro, text=text)
 
         try:
             db.session.add(article)
             db.session.commit()
-            return redirect('/posts')
+            return redirect("/posts")
         except:
             return "При добавлении статьи произошла ошибка!"
     else:
-        return render_template('create-article.html')
+        return render_template("create-article.html")
 
-@app.route('/user/<string:name>/<int:id>')
+
+@app.route("/user/<string:name>/<int:id>")
 def user(name, id):
-    return 'User page: ' + name + ' - ' + str(id)
+    return "User page: " + name + " - " + str(id)
 
 
-@app.route('/blog/news')
+@app.route("/blog/news")
 def news():
     return "Some data"
 
-@app.route('/blog/<int:id>/news')
+
+@app.route("/blog/<int:id>/news")
 def news_id():
     return "Some data"
 
 
-@app.route('/admin-<string:login>/<int:id>')
+@app.route("/admin-<string:login>/<int:id>")
 def admin_login(login, id):
     return "Some data"
 
 
-@app.route('/user/<string:login>')
+@app.route("/user/<string:login>")
 def user_login(login):
-    return render_template('user.html', login=login)
+    return render_template("user.html", login=login)
 
 
-@app.route('/contacti')
-def contacts():
-    return render_template('contacts.html')
+@app.route("/contacts", methods=["POST", "GET"])
+def create_contacts():
+    if request.method == "POST":
+        name = request.form["name"]
+        email = request.form["email"]
+        text = request.form["text"]
 
-if __name__ == '__main__':
+        data = {"name": name, "email": email, "text": text}
+
+        if len(name) < 5:
+            data["error"] = "Имя указано неверно"
+            return render_template("contacts.html", data=data)
+        elif len(email) < 5:  # Аналогично
+            data["error"] = "Email указан неверно"
+            return render_template("contacts.html", data=data)
+        elif len(text) < 5:  # Аналогично
+            data["error"] = "Сообщение указано неверно"
+            return render_template("contacts.html", data=data)
+
+        try:
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login("markdobro31@gmail.com", "pass")
+            subject = "Message from your website"
+            message = f"Subject: {subject}\n{text}"
+            server.sendmail(email, "markdobro31@gmail.com", message)
+            server.quit()
+            return redirect("/contact")
+        except:
+            return "При отправке письма произошла ошибка"
+    else:
+        data = {"error": ""}
+        return render_template("contacts.html", data=data)
+
+
+if __name__ == "__main__":
     with app.app_context():
         db.create_all()
     app.run(debug=True)
