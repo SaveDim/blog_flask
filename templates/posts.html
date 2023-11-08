@@ -11,7 +11,7 @@
         <h2>{{ article.title }}</h2>
         <p>{{ article.intro }}</p>
         <p><b>Дата: {{ article.date.date() }}</b></p>
-        <button class="btn btn-warning">Подробнее</button>
+        <a href="/posts/{{ article.id }}">Подробнее</a>
     </div>
     {% endfor %}
 
